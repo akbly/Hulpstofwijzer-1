@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hulpstof — geneesmiddelen vergelijken</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#132420;
+    --ink-soft:#3d514c;
+    --paper:#EEF1EE;
+    --paper-raised:#FFFFFF;
+    --line: #D3DAD5;
+    --teal-900:#0B3D3A;
+    --teal-700:#155048;
+    --teal-500:#1F7A6C;
+    --teal-100:#DCEAE5;
+    --amber-600:#B9791F;
+    --amber-100:#F6E7CE;
+    --diff-bg:#FBEFDD;
+    --diff-line:#E3B876;
+    --shared-bg:#EAF3EF;
+    --radius:10px;
+    --serif: "Fraunces", Georgia, serif;
+    --sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--sans);
+    font-size:15px;
+    line-height:1.45;
+  }
+  a{color:var(--teal-700);}
+
+  /* ---------- header ---------- */
+  header.top{
+    background:var(--teal-900);
+    color:#EAF3EF;
+    padding:22px 28px 20px;
+    border-bottom:4px solid var(--amber-600);
+  }
+  .top-inner{max-width:1180px;margin:0 auto;display:flex;align-items:baseline;justify-content:space-between;gap:24px;flex-wrap:wrap;}
+  .wordmark{
+    font-family:var(--serif);
+    font-weight:600;
+    font-size:26px;
+    letter-spacing:0.2px;
+    display:flex;
+    align-items:baseline;
+    gap:10px;
+  }
+  .wordmark .dot{color:var(--amber-600);font-size:26px;line-height:1;}
+  .tagline{font-size:13px;color:#B9CFC8;font-family:var(--mono);letter-spacing:.02em;}
+
+  /* ---------- nav tabs ---------- */
+  nav.tabs{
+    max-width:1180px;margin:0 auto;
+    display:flex;gap:4px;padding:16px 28px 0;
+  }
+  .tab-btn{
+    font-family:var(--sans);
+    font-weight:600;
+    font-size:14px;
+    background:transparent;
+    border:none;
+    padding:10px 16px;
+    color:var(--ink-soft);
+    cursor:pointer;
+    border-radius:8px 8px 0 0;
+    border:1px solid transparent;
+  }
+  .tab-btn.active{
+    background:var(--paper-raised);
+    color:var(--teal-900);
+    border:1px solid var(--line);
+    border-bottom:1px solid var(--paper-raised);
+    margin-bottom:-1px;
+  }
+
+  main{max-width:1180px;margin:0 auto;padding:0 28px 60px;}
+  .panel{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:0 var(--radius) var(--radius) var(--radius);
+    padding:26px;
+    margin-top:0;
+  }
+  .view{display:none;}
+  .view.active{display:block;}
+
+  h2.section-title{
+    font-family:var(--serif);
+    font-weight:500;
+    font-size:22px;
+    margin:0 0 4px;
+    color:var(--teal-900);
+  }
+  p.section-sub{margin:0 0 20px;color:var(--ink-soft);font-size:14px;}
+
+  /* ---------- search ---------- */
+  .search-row{display:flex;gap:10px;margin-bottom:18px;}
+  input[type=text]{
+    flex:1;
+    font-family:var(--sans);
+    font-size:15px;
+    padding:12px 14px;
+    border:1.5px solid var(--line);
+    border-radius:8px;
+    background:var(--paper);
+    color:var(--ink);
+  }
+  input[type=text]:focus{outline:2px solid var(--teal-500);outline-offset:1px;border-color:var(--teal-500);}
+  .hint{font-size:12.5px;color:#6b8079;margin-top:-10px;margin-bottom:16px;}
+
+  .result-count{font-family:var(--mono);font-size:12.5px;color:var(--ink-soft);margin-bottom:10px;}
+
+  .results{display:flex;flex-direction:column;gap:8px;max-height:560px;overflow-y:auto;padding-right:4px;}
+  .card{
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:12px 14px;
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:14px;
+    background:var(--paper);
+  }
+  .card .name{font-weight:600;color:var(--teal-900);font-size:14.5px;}
+  .card .meta{font-size:12.5px;color:var(--ink-soft);margin-top:3px;}
+  .card .meta .sep{margin:0 6px;color:var(--line);}
+  .card .werkzaam{font-size:12.5px;margin-top:5px;color:var(--ink-soft);}
+  .card .werkzaam b{color:var(--ink);font-weight:600;}
+  .badge{
+    font-family:var(--mono);
+    font-size:10.5px;
+    padding:2px 6px;
+    border-radius:4px;
+    background:var(--teal-100);
+    color:var(--teal-700);
+  }
+  .badge.rvh{background:var(--amber-100);color:var(--amber-600);}
+  .card-actions{display:flex;gap:6px;flex-shrink:0;}
+  button.chip-btn{
+    font-family:var(--sans);
+    font-size:12.5px;
+    font-weight:600;
+    padding:7px 12px;
+    border-radius:6px;
+    border:1.5px solid var(--teal-500);
+    background:var(--paper-raised);
+    color:var(--teal-700);
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  button.chip-btn:hover{background:var(--teal-100);}
+  button.chip-btn.added{background:var(--teal-700);color:#fff;border-color:var(--teal-700);}
+  button.chip-btn:disabled{opacity:.4;cursor:not-allowed;}
+  button.link-btn{
+    font-family:var(--sans);font-size:12px;font-weight:600;
+    background:none;border:none;color:var(--teal-700);cursor:pointer;text-decoration:underline;padding:0;
+  }
+
+  /* ---------- compare tray ---------- */
+  .tray{
+    display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    background:var(--teal-100);
+    border:1px solid #BFDAD1;
+    border-radius:8px;
+    padding:12px 14px;
+    margin-bottom:18px;
+  }
+  .tray .tray-label{font-family:var(--mono);font-size:11.5px;color:var(--teal-700);text-transform:uppercase;letter-spacing:.04em;}
+  .tray-item{
+    display:flex;align-items:center;gap:8px;
+    background:var(--paper-raised);
+    border:1px solid var(--teal-500);
+    border-radius:20px;
+    padding:5px 6px 5px 12px;
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--teal-900);
+  }
+  .tray-item .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+  .tray-item button{
+    border:none;background:var(--teal-100);color:var(--teal-700);
+    border-radius:50%;width:18px;height:18px;cursor:pointer;font-size:12px;line-height:1;
+  }
+  .tray-empty{color:var(--teal-700);font-size:13px;}
+  .btn-compare{
+    margin-left:auto;
+    background:var(--teal-900);color:#fff;border:none;
+    padding:9px 18px;border-radius:7px;font-weight:600;font-size:13.5px;cursor:pointer;
+  }
+  .btn-compare:disabled{background:#9AB3AC;cursor:not-allowed;}
+
+  /* ---------- comparison grid ---------- */
+  .compare-wrap{overflow-x:auto;}
+  table.compare{border-collapse:collapse;width:100%;min-width:640px;}
+  table.compare th, table.compare td{
+    border:1px solid var(--line);
+    padding:10px 12px;
+    text-align:left;
+    vertical-align:top;
+    font-size:13px;
+  }
+  table.compare thead th{
+    background:var(--teal-900);
+    color:#fff;
+    font-family:var(--serif);
+    font-weight:500;
+    font-size:14.5px;
+    position:sticky;top:0;
+  }
+  table.compare thead th .col-meta{
+    font-family:var(--mono);
+    font-size:11px;
+    font-weight:400;
+    color:#C4DBD3;
+    display:block;
+    margin-top:4px;
+  }
+  table.compare td.hulpstof-name{font-weight:500;background:var(--paper);white-space:nowrap;}
+  table.compare tr.shared td.hulpstof-name{color:var(--ink-soft);}
+  table.compare tr.diff td.hulpstof-name{color:var(--teal-900);font-weight:600;}
+  td.present{background:var(--shared-bg);color:var(--teal-700);text-align:center;font-weight:700;}
+  td.present.only{background:var(--diff-bg);color:var(--amber-600);border-left:2px solid var(--diff-line);border-right:2px solid var(--diff-line);}
+  td.absent{background:var(--paper-raised);color:var(--line);text-align:center;}
+  .legend{display:flex;gap:18px;margin:14px 0 4px;font-size:12.5px;color:var(--ink-soft);flex-wrap:wrap;}
+  .legend .sw{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-2px;}
+  .empty-compare{
+    padding:50px 20px;text-align:center;color:var(--ink-soft);
+  }
+  .empty-compare .big{font-family:var(--serif);font-size:19px;color:var(--teal-900);margin-bottom:8px;}
+
+  /* ---------- exclusion search ---------- */
+  .exclude-box{
+    display:flex;flex-wrap:wrap;gap:8px;
+    border:1.5px solid var(--line);
+    border-radius:8px;
+    padding:10px;
+    background:var(--paper);
+    margin-bottom:6px;
+    min-height:46px;
+  }
+  .exclude-chip{
+    display:flex;align-items:center;gap:6px;
+    background:var(--amber-100);
+    border:1px solid var(--amber-600);
+    color:#7A5314;
+    border-radius:16px;
+    padding:4px 6px 4px 12px;
+    font-size:12.5px;
+    font-weight:600;
+  }
+  .exclude-chip button{border:none;background:none;color:#7A5314;cursor:pointer;font-size:13px;padding:0 4px;}
+  .exclude-input{flex:1;min-width:180px;border:none;background:transparent;font-family:var(--sans);font-size:14px;padding:6px;}
+  .exclude-input:focus{outline:none;}
+  .suggest-list{
+    border:1px solid var(--line);border-top:none;background:var(--paper-raised);
+    max-height:220px;overflow-y:auto;border-radius:0 0 8px 8px;margin-bottom:16px;
+  }
+  .suggest-item{padding:8px 14px;font-size:13.5px;cursor:pointer;display:flex;justify-content:space-between;}
+  .suggest-item:hover{background:var(--teal-100);}
+  .suggest-item .freq{font-family:var(--mono);font-size:11px;color:var(--ink-soft);}
+
+  footer{max-width:1180px;margin:0 auto;padding:20px 28px 40px;color:var(--ink-soft);font-size:12px;}
+  footer a{color:var(--teal-700);}
+
+  ::-webkit-scrollbar{width:8px;height:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px;}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-inner">
+    <div class="wordmark">Hulpstof<span class="dot">·</span>bank</div>
+    <div class="tagline" id="dataCount">geneesmiddelen geladen…</div>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-view="vergelijk">Zoeken &amp; vergelijken</button>
+  <button class="tab-btn" data-view="uitsluiten">Zoeken zonder hulpstof</button>
+</nav>
+
+<main>
+  <!-- ===================== TAB 1: ZOEKEN & VERGELIJKEN ===================== -->
+  <section class="panel view active" id="view-vergelijk">
+    <h2 class="section-title">Zoeken &amp; vergelijken</h2>
+    <p class="section-sub">Zoek op productnaam of werkzame stof. Voeg tot 4 geneesmiddelen toe om de hulpstoffen naast elkaar te leggen.</p>
+
+    <div class="search-row">
+      <input type="text" id="searchInput" placeholder="Bijv. paracetamol, Xylocaine, ibuprofen…" autocomplete="off">
+    </div>
+    <div class="hint">Zoekt in productnaam én werkzame stof(fen). Eerste 60 resultaten worden getoond.</div>
+
+    <div class="tray" id="tray">
+      <span class="tray-label">Vergelijkingslijst</span>
+      <span class="tray-empty" id="trayEmpty">nog niets geselecteerd</span>
+      <button class="btn-compare" id="btnCompare" disabled>Vergelijk geselecteerde (0)</button>
+    </div>
+
+    <div class="result-count" id="resultCount"></div>
+    <div class="results" id="results"></div>
+
+    <div id="compareSection" style="display:none;margin-top:26px;">
+      <h2 class="section-title" style="margin-top:6px;">Vergelijking</h2>
+      <div class="legend">
+        <span><span class="sw" style="background:var(--shared-bg);border:1px solid var(--teal-500);"></span>hulpstof aanwezig</span>
+        <span><span class="sw" style="background:var(--diff-bg);border:1px solid var(--diff-line);"></span>aanwezig in slechts één geselecteerd middel (verschil)</span>
+        <span><span class="sw" style="background:var(--paper-raised);border:1px solid var(--line);"></span>niet aanwezig</span>
+      </div>
+      <div class="compare-wrap"><div id="compareTable"></div></div>
+    </div>
+  </section>
+
+  <!-- ===================== TAB 2: ZONDER HULPSTOF ===================== -->
+  <section class="panel view" id="view-uitsluiten">
+    <h2 class="section-title">Zoeken zonder hulpstof</h2>
+    <p class="section-sub">Sluit één of meer hulpstoffen uit (bijv. lactose, propyleenglycol) en zoek eventueel ook op productnaam of werkzame stof.</p>
+
+    <label style="font-size:13px;font-weight:600;color:var(--ink-soft);display:block;margin-bottom:6px;">Uit te sluiten hulpstoffen</label>
+    <div class="exclude-box" id="excludeBox">
+      <input type="text" class="exclude-input" id="excludeInput" placeholder="Typ om een hulpstof te zoeken en uit te sluiten…" autocomplete="off">
+    </div>
+    <div class="suggest-list" id="suggestList" style="display:none;"></div>
+
+    <div class="search-row" style="margin-top:14px;">
+      <input type="text" id="searchInput2" placeholder="Optioneel: filter op productnaam of werkzame stof…" autocomplete="off">
+    </div>
+
+    <div class="result-count" id="resultCount2"></div>
+    <div class="results" id="results2"></div>
+  </section>
+</main>
+
+<footer>
+  Data: CBG Geneesmiddeleninformatiebank (databestand, momentopname). Dit prototype is bedoeld ter ondersteuning — raadpleeg bij twijfel altijd de volledige SmPC/bijsluiter en de G-Standaard.
+</footer>
+
+<script src="data.js"></script>
+<script src="hulpstoffen.js"></script>
+<script>
+const DATA = window.MEDICIJNEN || [];
+const HULPSTOFFEN_INDEX = window.HULPSTOFFEN_INDEX || [];
+document.getElementById('dataCount').textContent = DATA.length.toLocaleString('nl-NL') + ' geneesmiddelen geladen';
+
+// ---------- helpers ----------
+function norm(s){ return (s||'').toLocaleUpperCase('nl-NL'); }
+
+function matchQuery(rec, q){
+  if(!q) return true;
+  const nq = norm(q);
+  if(norm(rec.naam).includes(nq)) return true;
+  if(rec.werkzamestoffen.some(w => norm(w).includes(nq))) return true;
+  return false;
+}
+
+function badgeForSoort(soort){
+  const s = (soort||'').trim();
+  if(s === 'RVH') return '<span class="badge rvh">RVH homeopathisch</span>';
+  if(s === 'RVG') return '<span class="badge">RVG</span>';
+  if(s === 'EU') return '<span class="badge">EU</span>';
+  return s ? '<span class="badge">'+s+'</span>' : '';
+}
+
+function cardHtml(rec, opts){
+  opts = opts || {};
+  const inTray = compareList.includes(rec.id);
+  const disabled = (!inTray && compareList.length >= 4) ? 'disabled' : '';
+  const btnLabel = inTray ? '✓ Toegevoegd' : '+ Vergelijk';
+  const btnClass = inTray ? 'chip-btn added' : 'chip-btn';
+  const werkzaam = rec.werkzamestoffen.length ? rec.werkzamestoffen.join(', ') : '—';
+  const linkBtn = rec.link ? `<button class="link-btn" onclick="window.open('${rec.link.replace(/'/g,"\\'")}','_blank')">CBG-pagina ↗</button>` : '';
+  return `<div class="card" data-id="${rec.id}">
+    <div>
+      <div class="name">${escapeHtml(rec.naam)}</div>
+      <div class="meta">${badgeForSoort(rec.soort)}<span class="sep">·</span>${escapeHtml(rec.vorm||'onbekende vorm')}${rec.toedieningsweg ? ' · '+escapeHtml(rec.toedieningsweg) : ''}<span class="sep">·</span>${escapeHtml(rec.afleverstatus||'')}</div>
+      <div class="werkzaam"><b>Werkzame stof:</b> ${escapeHtml(werkzaam)} <span class="sep">·</span> ${rec.hulpstoffen.length} hulpstof(fen)</div>
+    </div>
+    <div class="card-actions">
+      ${linkBtn}
+      <button class="${btnClass}" ${disabled} onclick="toggleCompare('${rec.id}')">${btnLabel}</button>
+    </div>
+  </div>`;
+}
+
+function escapeHtml(s){
+  return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ---------- TAB 1: search + compare ----------
+let compareList = [];
+const COLORS = ['#1F7A6C', '#B9791F', '#6B4FA0', '#B04A5A'];
+
+function runSearch1(){
+  const q = document.getElementById('searchInput').value.trim();
+  const box = document.getElementById('results');
+  const countBox = document.getElementById('resultCount');
+  if(!q){
+    box.innerHTML = '';
+    countBox.textContent = '';
+    return;
+  }
+  const matches = [];
+  for(let i=0;i<DATA.length;i++){
+    if(matchQuery(DATA[i], q)){
+      matches.push(DATA[i]);
+      if(matches.length >= 400) break;
+    }
+  }
+  countBox.textContent = matches.length + (matches.length>=400 ? '+ resultaten (eerste 60 getoond)' : ' resultaten' + (matches.length>60 ? ' (eerste 60 getoond)':''));
+  box.innerHTML = matches.slice(0,60).map(r => cardHtml(r)).join('') || '<div class="tray-empty">Geen resultaten.</div>';
+}
+
+function toggleCompare(id){
+  const idx = compareList.indexOf(id);
+  if(idx >= 0){
+    compareList.splice(idx,1);
+  } else {
+    if(compareList.length >= 4) return;
+    compareList.push(id);
+  }
+  renderTray();
+  runSearch1();
+  if(compareList.length >= 2) renderCompare(); else { document.getElementById('compareSection').style.display='none'; }
+}
+
+function renderTray(){
+  const tray = document.getElementById('tray');
+  const empty = document.getElementById('trayEmpty');
+  const btn = document.getElementById('btnCompare');
+  const items = document.getElementById('tray').querySelectorAll('.tray-item');
+  items.forEach(el => el.remove());
+  if(compareList.length === 0){
+    empty.style.display = 'inline';
+  } else {
+    empty.style.display = 'none';
+  }
+  compareList.forEach((id, i) => {
+    const rec = DATA.find(d => d.id === id);
+    if(!rec) return;
+    const el = document.createElement('span');
+    el.className = 'tray-item';
+    el.innerHTML = `<span class="dot" style="background:${COLORS[i]}"></span>${escapeHtml(rec.naam)}<button onclick="toggleCompare('${id}')">✕</button>`;
+    tray.insertBefore(el, empty);
+  });
+  btn.textContent = `Vergelijk geselecteerde (${compareList.length})`;
+  btn.disabled = compareList.length < 2;
+}
+
+document.getElementById('btnCompare').addEventListener('click', () => {
+  if(compareList.length >= 2) renderCompare();
+});
+
+function renderCompare(){
+  const section = document.getElementById('compareSection');
+  section.style.display = 'block';
+  const recs = compareList.map(id => DATA.find(d => d.id === id)).filter(Boolean);
+
+  // union of hulpstoffen, count occurrences
+  const counts = {};
+  recs.forEach(r => r.hulpstoffen.forEach(h => { counts[h] = (counts[h]||0) + 1; }));
+  const allHulpstoffen = Object.keys(counts).sort((a,b) => {
+    // shared-by-all first? Actually show diffs first for usefulness: sort by count ascending (rarest/most distinguishing first), then alpha
+    if(counts[a] !== counts[b]) return counts[a]-counts[b];
+    return a.localeCompare(b);
+  });
+
+  let head = '<table class="compare"><thead><tr><th>Hulpstof</th>';
+  recs.forEach((r,i) => {
+    head += `<th style="border-top:3px solid ${COLORS[i]}">${escapeHtml(r.naam)}<span class="col-meta">${escapeHtml(r.vorm||'')}${r.toedieningsweg ? ' · '+escapeHtml(r.toedieningsweg):''}</span></th>`;
+  });
+  head += '</tr></thead><tbody>';
+
+  let rows = '';
+  if(allHulpstoffen.length === 0){
+    rows = `<tr><td colspan="${recs.length+1}" style="text-align:center;color:var(--ink-soft);padding:20px;">Geen hulpstoffen geregistreerd voor de geselecteerde middelen.</td></tr>`;
+  }
+  allHulpstoffen.forEach(h => {
+    const isDiff = counts[h] < recs.length; // not present in all -> a distinguishing difference
+    rows += `<tr class="${isDiff ? 'diff':'shared'}"><td class="hulpstof-name">${escapeHtml(h)}</td>`;
+    recs.forEach(r => {
+      const present = r.hulpstoffen.includes(h);
+      if(present){
+        rows += `<td class="present ${isDiff ? 'only':''}">●</td>`;
+      } else {
+        rows += `<td class="absent">—</td>`;
+      }
+    });
+    rows += '</tr>';
+  });
+
+  document.getElementById('compareTable').innerHTML = head + rows + '</tbody></table>';
+
+  // werkzame stoffen summary row above table via a small note
+  const wsNote = recs.map((r,i) => `<b style="color:${COLORS[i]}">${escapeHtml(r.naam)}</b>: ${escapeHtml(r.werkzamestoffen.join(', ')||'—')}`).join(' &nbsp;|&nbsp; ');
+  document.getElementById('compareTable').insertAdjacentHTML('afterbegin', `<div style="margin-bottom:12px;font-size:13px;color:var(--ink-soft);">${wsNote}</div>`);
+}
+
+document.getElementById('searchInput').addEventListener('input', debounce(runSearch1, 120));
+
+// ---------- TAB 2: exclusion search ----------
+let excludeList = [];
+
+function renderExcludeBox(){
+  const box = document.getElementById('excludeBox');
+  box.querySelectorAll('.exclude-chip').forEach(el => el.remove());
+  const input = document.getElementById('excludeInput');
+  excludeList.forEach(h => {
+    const chip = document.createElement('span');
+    chip.className = 'exclude-chip';
+    chip.innerHTML = `${escapeHtml(h)}<button onclick="removeExclude('${h.replace(/'/g,"\\'")}')">✕</button>`;
+    box.insertBefore(chip, input);
+  });
+}
+
+function removeExclude(h){
+  excludeList = excludeList.filter(x => x !== h);
+  renderExcludeBox();
+  runSearch2();
+}
+
+function addExclude(h){
+  if(!excludeList.includes(h)) excludeList.push(h);
+  document.getElementById('excludeInput').value = '';
+  document.getElementById('suggestList').style.display = 'none';
+  renderExcludeBox();
+  runSearch2();
+}
+
+document.getElementById('excludeInput').addEventListener('input', debounce(() => {
+  const q = document.getElementById('excludeInput').value.trim();
+  const list = document.getElementById('suggestList');
+  if(!q){ list.style.display='none'; return; }
+  const nq = norm(q);
+  const matches = HULPSTOFFEN_INDEX.filter(([h]) => norm(h).includes(nq) && !excludeList.includes(h)).slice(0,25);
+  if(matches.length === 0){ list.style.display='none'; return; }
+  list.innerHTML = matches.map(([h,c]) => `<div class="suggest-item" onclick="addExclude('${h.replace(/'/g,"\\'")}')"><span>${escapeHtml(h)}</span><span class="freq">${c}×</span></div>`).join('');
+  list.style.display = 'block';
+}, 100));
+
+document.getElementById('searchInput2').addEventListener('input', debounce(runSearch2, 120));
+
+function runSearch2(){
+  const q = document.getElementById('searchInput2').value.trim();
+  const box = document.getElementById('results2');
+  const countBox = document.getElementById('resultCount2');
+  if(excludeList.length === 0 && !q){
+    box.innerHTML = '';
+    countBox.textContent = '';
+    return;
+  }
+  const excl = excludeList.map(norm);
+  const matches = [];
+  for(let i=0;i<DATA.length;i++){
+    const rec = DATA[i];
+    if(!matchQuery(rec, q)) continue;
+    if(excl.length){
+      const recHulp = rec.hulpstoffen.map(norm);
+      if(excl.some(e => recHulp.includes(e))) continue;
+    }
+    matches.push(rec);
+    if(matches.length >= 400) break;
+  }
+  countBox.textContent = matches.length + (matches.length>=400 ? '+ resultaten (eerste 60 getoond)' : ' resultaten' + (matches.length>60 ? ' (eerste 60 getoond)':''));
+  box.innerHTML = matches.slice(0,60).map(r => cardHtml(r)).join('') || '<div class="tray-empty">Geen resultaten met deze combinatie.</div>';
+}
+
+// ---------- tabs ----------
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-' + btn.dataset.view).classList.add('active');
+  });
+});
+
+function debounce(fn, ms){
+  let t;
+  return function(...args){
+    clearTimeout(t);
+    t = setTimeout(() => fn.apply(this,args), ms);
+  };
+}
+
+renderTray();
+</script>
+</body>
+</html>

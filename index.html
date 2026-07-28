@@ -334,6 +334,38 @@
   .alt-details .shared{color:var(--teal-700);}
   .alt-empty{padding:30px 16px;text-align:center;color:var(--ink-soft);}
 
+  .alt-more-label{
+    font-family:var(--mono);
+    font-size:11.5px;
+    color:var(--ink-soft);
+    text-transform:uppercase;
+    letter-spacing:.03em;
+    margin:18px 0 8px;
+  }
+  .alt-more-list{
+    border:1px solid var(--line);
+    border-radius:8px;
+    overflow:hidden;
+  }
+  .alt-more-item{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:9px 14px;
+    font-size:13px;
+    background:var(--paper-raised);
+    border-bottom:1px solid var(--line);
+  }
+  .alt-more-item:last-child{border-bottom:none;}
+  .alt-more-pct{
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--teal-700);
+    font-weight:600;
+    white-space:nowrap;
+    margin-left:12px;
+  }
+
   ::-webkit-scrollbar{width:8px;height:8px;}
   ::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px;}
 </style>
@@ -777,6 +809,10 @@ function renderRefCard(){
   `;
 }
 
+function normalizeName(naam){
+  return (naam||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+}
+
 function computeAlternatives(){
   const ref = altReference;
   const refKey = ref.werkzamestoffen.map(norm).slice().sort().join('|');
@@ -819,18 +855,19 @@ function computeAlternatives(){
     return { rec:r, pct, sharedCount, shared, missing, extra, sterkte };
   });
 
-  // per merk (fabrikant) de beste match bewaren, zodat 1 merk niet 3x de top3 vult
-  const byBrand = {};
+  // dedupliceren op genormaliseerde productnaam: voorkomt dat hetzelfde product (bijv.
+  // via een parallelle registratiehouder) twee keer als apart alternatief verschijnt
+  const byProduct = {};
   scored.forEach(s => {
-    const key = (s.rec.houder||'(onbekende fabrikant)').trim().toUpperCase();
-    const existing = byBrand[key];
+    const key = normalizeName(s.rec.naam);
+    const existing = byProduct[key];
     if(!existing || s.pct > existing.pct || (s.pct === existing.pct && s.sharedCount > existing.sharedCount)){
-      byBrand[key] = s;
+      byProduct[key] = s;
     }
   });
 
-  const brandList = Object.values(byBrand).sort((a,b) => b.pct - a.pct || b.sharedCount - a.sharedCount);
-  renderAlternatives(brandList, poolMode, refSterkte);
+  const productList = Object.values(byProduct).sort((a,b) => b.pct - a.pct || b.sharedCount - a.sharedCount);
+  renderAlternatives(productList, poolMode, refSterkte);
 }
 
 function pctClass(pct){
@@ -843,7 +880,7 @@ function listOrNone(arr, noneLabel){
   return arr.length ? escapeHtml(arr.join(', ')) : `<i>${noneLabel}</i>`;
 }
 
-function renderAlternatives(brandList, poolMode, refSterkte){
+function renderAlternatives(productList, poolMode, refSterkte){
   const summary = document.getElementById('altSummary');
   const list = document.getElementById('altList');
 
@@ -854,20 +891,23 @@ function renderAlternatives(brandList, poolMode, refSterkte){
     warning = `<div class="alt-warning">Geen enkel ander merk gevonden met exact dezelfde sterkte (${escapeHtml(refSterkte.join(' / '))}) — onderstaand toon ik andere sterktes van dezelfde werkzame stof. Controleer de sterkte per alternatief.</div>`;
   }
 
-  if(brandList.length === 0){
+  if(productList.length === 0){
     summary.innerHTML = warning;
     list.innerHTML = '<div class="alt-empty">Geen andere merken gevonden met dezelfde werkzame stof(fen) in dit databestand.</div>';
     return;
   }
 
-  const n = brandList.length;
+  const n = productList.length;
   const sterkteNote = poolMode === 'sterkte-match' ? ' met dezelfde sterkte' : '';
   const countNote = n >= 3
     ? `${n} andere merken gevonden${sterkteNote} — top 3 hieronder, gerangschikt op hulpstof-overeenkomst.`
     : `Slechts ${n} ander${n===1?' merk':'e merken'} gevonden${sterkteNote} (minder dan 3 op de markt).`;
-  summary.innerHTML = warning + `<div>${countNote}</div>`;
+  const marketNote = `<div style="margin-top:4px;">Let op: dit databestand geeft geen actuele leverbaarheid/handelsstatus weer — een middel hieronder kan inmiddels uit de handel zijn. Controleer dit bij twijfel bij de groothandel of het informatorium.</div>`;
+  summary.innerHTML = warning + `<div>${countNote}</div>` + marketNote;
 
-  const top = brandList.slice(0,3);
+  const top = productList.slice(0,3);
+  const rest = productList.slice(3);
+
   list.innerHTML = top.map((s,i) => {
     const r = s.rec;
     const werkzaam = r.werkzamestoffen.length ? r.werkzamestoffen.join(', ') : '—';
@@ -889,6 +929,15 @@ function renderAlternatives(brandList, poolMode, refSterkte){
       </div>
     </div>`;
   }).join('');
+
+  if(rest.length > 0){
+    list.innerHTML += `
+      <div class="alt-more-label">Overige merken — mocht geen van bovenstaande top 3 leverbaar zijn:</div>
+      <div class="alt-more-list">
+        ${rest.map(s => `<div class="alt-more-item"><span>${escapeHtml(s.rec.naam)}</span><span class="alt-more-pct">${s.pct}% match</span></div>`).join('')}
+      </div>
+    `;
+  }
 }
 
 renderTray();

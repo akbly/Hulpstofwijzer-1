@@ -290,6 +290,16 @@
     padding:6px 12px;border-radius:6px;cursor:pointer;
   }
   .alt-summary{font-size:12.5px;color:var(--ink-soft);margin:14px 0 12px;font-family:var(--mono);}
+  .alt-warning{
+    font-family:var(--sans);
+    background:var(--diff-bg);
+    border:1px solid var(--diff-line);
+    color:#7A5314;
+    padding:10px 14px;
+    border-radius:8px;
+    margin-bottom:10px;
+    font-size:13px;
+  }
   .alt-card{
     border:1px solid var(--line);
     border-radius:10px;
@@ -724,14 +734,44 @@ function clearReference(){
   document.getElementById('altResultCount').textContent = '';
 }
 
+function parseDutchNumber(raw){
+  if(raw.includes(',')){
+    return parseFloat(raw.replace(/\./g,'').replace(',','.'));
+  } else if(raw.includes('.')){
+    const parts = raw.split('.');
+    if(parts.length === 2 && parts[1].length === 3) return parseFloat(raw.replace('.',''));
+    return parseFloat(raw);
+  }
+  return parseFloat(raw);
+}
+
+function extractSterkte(naam){
+  const re = /(\d+(?:[.,]\d+)?)\s*(microgram|mcg|milligram|mg|gram|g|milliliter|ml|i\.?e\.?|eenheden|%)\b/gi;
+  const tokens = [];
+  let m;
+  while((m = re.exec(naam)) !== null){
+    const num = parseDutchNumber(m[1]);
+    let unit = m[2].toLowerCase().replace(/\./g,'');
+    if(unit === 'microgram' || unit === 'mcg') unit = 'mcg';
+    else if(unit === 'milligram') unit = 'mg';
+    else if(unit === 'gram') unit = 'g';
+    else if(unit === 'milliliter') unit = 'ml';
+    else if(unit === 'ie') unit = 'ie';
+    tokens.push(num + unit);
+  }
+  return tokens.sort();
+}
+
 function renderRefCard(){
   const r = altReference;
   const werkzaam = r.werkzamestoffen.length ? r.werkzamestoffen.join(', ') : '—';
   const hulpList = r.hulpstoffen.length ? r.hulpstoffen.join(', ') : 'geen hulpstoffen geregistreerd';
+  const sterkte = extractSterkte(r.naam);
+  const sterkteLabel = sterkte.length ? sterkte.join(' / ') : 'niet herkend';
   document.getElementById('altRefCard').innerHTML = `
     <div class="ref-label">Niet-leverbaar middel (referentie)</div>
     <div class="ref-name">${escapeHtml(r.naam)}</div>
-    <div class="ref-meta">${escapeHtml(r.houder||'')} <span class="sep">·</span> ${escapeHtml(r.vorm||'')}${r.toedieningsweg ? ' · '+escapeHtml(r.toedieningsweg):''}<span class="sep">·</span> Werkzame stof: ${escapeHtml(werkzaam)}</div>
+    <div class="ref-meta">${escapeHtml(r.houder||'')} <span class="sep">·</span> ${escapeHtml(r.vorm||'')}${r.toedieningsweg ? ' · '+escapeHtml(r.toedieningsweg):''}<span class="sep">·</span> Sterkte: <b>${escapeHtml(sterkteLabel)}</b><span class="sep">·</span> Werkzame stof: ${escapeHtml(werkzaam)}</div>
     <div class="ref-hulp"><b>Hulpstoffen (${r.hulpstoffen.length}):</b> ${escapeHtml(hulpList)}</div>
     <button class="btn-clear-ref" onclick="clearReference()">Ander middel kiezen</button>
   `;
@@ -741,15 +781,33 @@ function computeAlternatives(){
   const ref = altReference;
   const refKey = ref.werkzamestoffen.map(norm).slice().sort().join('|');
   const refHulpSet = new Set(ref.hulpstoffen.map(norm));
+  const refSterkte = extractSterkte(ref.naam);
+  const refSterkteKey = refSterkte.join('|');
 
   // zelfde werkzame stof(fen), ander merk (fabrikant), niet het middel zelf
-  const candidates = DATA.filter(r =>
+  const sameSubstance = DATA.filter(r =>
     r.id !== ref.id &&
     r.werkzamestoffen.map(norm).slice().sort().join('|') === refKey &&
     (r.houder||'').trim().toUpperCase() !== (ref.houder||'').trim().toUpperCase()
   );
 
-  const scored = candidates.map(r => {
+  // primair filteren op exact dezelfde sterkte (uit de productnaam gehaald)
+  const withSterkte = sameSubstance.map(r => ({ rec:r, sterkteKey: extractSterkte(r.naam).join('|') }));
+  const sterkteMatches = refSterkteKey ? withSterkte.filter(x => x.sterkteKey === refSterkteKey) : [];
+
+  let pool, poolMode;
+  if(refSterkteKey && sterkteMatches.length > 0){
+    pool = sterkteMatches.map(x => x.rec);
+    poolMode = 'sterkte-match';
+  } else if(!refSterkteKey){
+    pool = sameSubstance;
+    poolMode = 'geen-sterkte-herkend';
+  } else {
+    pool = sameSubstance;
+    poolMode = 'geen-sterkte-match';
+  }
+
+  const scored = pool.map(r => {
     const candHulpSet = new Set(r.hulpstoffen.map(norm));
     const unionSet = new Set([...refHulpSet, ...candHulpSet]);
     const sharedCount = [...refHulpSet].filter(h => candHulpSet.has(h)).length;
@@ -757,7 +815,8 @@ function computeAlternatives(){
     const shared = ref.hulpstoffen.filter(h => candHulpSet.has(norm(h)));
     const missing = ref.hulpstoffen.filter(h => !candHulpSet.has(norm(h))); // zit in referentie, niet in dit alternatief
     const extra = r.hulpstoffen.filter(h => !refHulpSet.has(norm(h)));       // zit in dit alternatief, niet in referentie
-    return { rec:r, pct, sharedCount, shared, missing, extra };
+    const sterkte = extractSterkte(r.naam);
+    return { rec:r, pct, sharedCount, shared, missing, extra, sterkte };
   });
 
   // per merk (fabrikant) de beste match bewaren, zodat 1 merk niet 3x de top3 vult
@@ -771,7 +830,7 @@ function computeAlternatives(){
   });
 
   const brandList = Object.values(byBrand).sort((a,b) => b.pct - a.pct || b.sharedCount - a.sharedCount);
-  renderAlternatives(brandList);
+  renderAlternatives(brandList, poolMode, refSterkte);
 }
 
 function pctClass(pct){
@@ -784,30 +843,40 @@ function listOrNone(arr, noneLabel){
   return arr.length ? escapeHtml(arr.join(', ')) : `<i>${noneLabel}</i>`;
 }
 
-function renderAlternatives(brandList){
+function renderAlternatives(brandList, poolMode, refSterkte){
   const summary = document.getElementById('altSummary');
   const list = document.getElementById('altList');
 
+  let warning = '';
+  if(poolMode === 'geen-sterkte-herkend'){
+    warning = `<div class="alt-warning">Kon geen sterkte uit de productnaam herkennen — onderstaande alternatieven zijn niet op sterkte gefilterd. Controleer dit zelf.</div>`;
+  } else if(poolMode === 'geen-sterkte-match'){
+    warning = `<div class="alt-warning">Geen enkel ander merk gevonden met exact dezelfde sterkte (${escapeHtml(refSterkte.join(' / '))}) — onderstaand toon ik andere sterktes van dezelfde werkzame stof. Controleer de sterkte per alternatief.</div>`;
+  }
+
   if(brandList.length === 0){
-    summary.textContent = '';
+    summary.innerHTML = warning;
     list.innerHTML = '<div class="alt-empty">Geen andere merken gevonden met dezelfde werkzame stof(fen) in dit databestand.</div>';
     return;
   }
 
   const n = brandList.length;
-  summary.textContent = n >= 3
-    ? `${n} andere merken gevonden — top 3 hieronder, gerangschikt op hulpstof-overeenkomst.`
-    : `Slechts ${n} ander${n===1?' merk':'e merken'} gevonden met dezelfde werkzame stof(fen) (minder dan 3 op de markt).`;
+  const sterkteNote = poolMode === 'sterkte-match' ? ' met dezelfde sterkte' : '';
+  const countNote = n >= 3
+    ? `${n} andere merken gevonden${sterkteNote} — top 3 hieronder, gerangschikt op hulpstof-overeenkomst.`
+    : `Slechts ${n} ander${n===1?' merk':'e merken'} gevonden${sterkteNote} (minder dan 3 op de markt).`;
+  summary.innerHTML = warning + `<div>${countNote}</div>`;
 
   const top = brandList.slice(0,3);
   list.innerHTML = top.map((s,i) => {
     const r = s.rec;
     const werkzaam = r.werkzamestoffen.length ? r.werkzamestoffen.join(', ') : '—';
+    const sterkteLabel = s.sterkte.length ? s.sterkte.join(' / ') : 'niet herkend';
     return `<div class="alt-card">
       <div class="alt-rank">#${i+1}</div>
       <div class="alt-body">
         <div class="alt-name">${escapeHtml(r.naam)}</div>
-        <div class="alt-meta">${escapeHtml(r.houder||'onbekende fabrikant')} <span class="sep">·</span> ${escapeHtml(r.vorm||'')}${r.toedieningsweg ? ' · '+escapeHtml(r.toedieningsweg):''}<span class="sep">·</span> Werkzame stof: ${escapeHtml(werkzaam)}</div>
+        <div class="alt-meta">${escapeHtml(r.houder||'onbekende fabrikant')} <span class="sep">·</span> ${escapeHtml(r.vorm||'')}${r.toedieningsweg ? ' · '+escapeHtml(r.toedieningsweg):''}<span class="sep">·</span> Sterkte: <b>${escapeHtml(sterkteLabel)}</b><span class="sep">·</span> Werkzame stof: ${escapeHtml(werkzaam)}</div>
         <div class="alt-pctrow">
           <div class="alt-pctbar"><div class="alt-pctfill ${pctClass(s.pct)}" style="width:${s.pct}%"></div></div>
           <div class="alt-pct-label">${s.pct}% match</div>

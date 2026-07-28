@@ -297,9 +297,9 @@
     <p class="section-sub">Zoek op productnaam of werkzame stof. Voeg tot 4 geneesmiddelen toe om de hulpstoffen naast elkaar te leggen.</p>
 
     <div class="search-row">
-      <input type="text" id="searchInput" placeholder="Bijv. paracetamol, Xylocaine, ibuprofen…" autocomplete="off">
+      <input type="text" id="searchInput" placeholder="Bijv. metformine mylan 850…" autocomplete="off">
     </div>
-    <div class="hint">Zoekt in productnaam én werkzame stof(fen). Eerste 60 resultaten worden getoond.</div>
+    <div class="hint">Typ losse trefwoorden in willekeurige volgorde — zoekt in productnaam, werkzame stof(fen) én fabrikant. Eerste 60 resultaten worden getoond.</div>
 
     <div class="tray" id="tray">
       <span class="tray-label">Vergelijkingslijst</span>
@@ -333,7 +333,7 @@
     <div class="suggest-list" id="suggestList" style="display:none;"></div>
 
     <div class="search-row" style="margin-top:14px;">
-      <input type="text" id="searchInput2" placeholder="Optioneel: filter op productnaam of werkzame stof…" autocomplete="off">
+      <input type="text" id="searchInput2" placeholder="Optioneel: trefwoorden, bijv. metformine mylan 850…" autocomplete="off">
     </div>
 
     <div class="result-count" id="resultCount2"></div>
@@ -357,10 +357,10 @@ function norm(s){ return (s||'').toLocaleUpperCase('nl-NL'); }
 
 function matchQuery(rec, q){
   if(!q) return true;
-  const nq = norm(q);
-  if(norm(rec.naam).includes(nq)) return true;
-  if(rec.werkzamestoffen.some(w => norm(w).includes(nq))) return true;
-  return false;
+  const tokens = norm(q).split(/\s+/).filter(Boolean);
+  if(tokens.length === 0) return true;
+  const haystack = rec._haystack || (rec._haystack = norm(rec.naam) + ' ' + norm(rec.werkzamestoffen.join(' ')) + ' ' + norm(rec.houder));
+  return tokens.every(t => haystack.includes(t));
 }
 
 function badgeForSoort(soort){
@@ -382,7 +382,7 @@ function cardHtml(rec, opts){
   return `<div class="card" data-id="${rec.id}">
     <div>
       <div class="name">${escapeHtml(rec.naam)}</div>
-      <div class="meta">${badgeForSoort(rec.soort)}<span class="sep">·</span>${escapeHtml(rec.vorm||'onbekende vorm')}${rec.toedieningsweg ? ' · '+escapeHtml(rec.toedieningsweg) : ''}<span class="sep">·</span>${escapeHtml(rec.afleverstatus||'')}</div>
+      <div class="meta">${badgeForSoort(rec.soort)}<span class="sep">·</span>${escapeHtml(rec.houder||'onbekende fabrikant')}<span class="sep">·</span>${escapeHtml(rec.vorm||'onbekende vorm')}${rec.toedieningsweg ? ' · '+escapeHtml(rec.toedieningsweg) : ''}<span class="sep">·</span>${escapeHtml(rec.afleverstatus||'')}</div>
       <div class="werkzaam"><b>Werkzame stof:</b> ${escapeHtml(werkzaam)} <span class="sep">·</span> ${rec.hulpstoffen.length} hulpstof(fen)</div>
     </div>
     <div class="card-actions">

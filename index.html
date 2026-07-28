@@ -272,6 +272,58 @@
   footer{max-width:1180px;margin:0 auto;padding:20px 28px 40px;color:var(--ink-soft);font-size:12px;}
   footer a{color:var(--teal-700);}
 
+  /* ---------- alternatief zoeken ---------- */
+  .ref-card{
+    background:var(--teal-100);
+    border:1px solid #BFDAD1;
+    border-radius:8px;
+    padding:16px 18px;
+  }
+  .ref-card .ref-label{font-family:var(--mono);font-size:11px;color:var(--teal-700);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;}
+  .ref-card .ref-name{font-family:var(--serif);font-size:19px;color:var(--teal-900);font-weight:600;}
+  .ref-card .ref-meta{font-size:12.5px;color:var(--ink-soft);margin-top:4px;}
+  .ref-card .ref-hulp{font-size:12.5px;color:var(--ink-soft);margin-top:8px;}
+  .btn-clear-ref{
+    margin-top:10px;
+    font-family:var(--sans);font-size:12.5px;font-weight:600;
+    background:var(--paper-raised);border:1.5px solid var(--teal-500);color:var(--teal-700);
+    padding:6px 12px;border-radius:6px;cursor:pointer;
+  }
+  .alt-summary{font-size:12.5px;color:var(--ink-soft);margin:14px 0 12px;font-family:var(--mono);}
+  .alt-card{
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:16px 18px;
+    margin-bottom:14px;
+    background:var(--paper-raised);
+    display:flex;
+    gap:16px;
+  }
+  .alt-rank{
+    font-family:var(--serif);
+    font-size:26px;
+    font-weight:600;
+    color:var(--teal-900);
+    width:36px;
+    flex-shrink:0;
+  }
+  .alt-body{flex:1;min-width:0;}
+  .alt-name{font-weight:600;font-size:15px;color:var(--teal-900);}
+  .alt-meta{font-size:12.5px;color:var(--ink-soft);margin-top:2px;}
+  .alt-pctrow{display:flex;align-items:center;gap:10px;margin-top:10px;}
+  .alt-pctbar{flex:1;height:8px;border-radius:4px;background:var(--paper);overflow:hidden;}
+  .alt-pctfill{height:100%;border-radius:4px;background:var(--teal-500);}
+  .alt-pctfill.mid{background:var(--amber-600);}
+  .alt-pctfill.low{background:#B04A5A;}
+  .alt-pct-label{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--teal-900);white-space:nowrap;}
+  .alt-details{margin-top:10px;font-size:12.5px;line-height:1.6;}
+  .alt-details .row{margin-bottom:3px;}
+  .alt-details b{color:var(--ink);}
+  .alt-details .missing{color:#8A3B48;}
+  .alt-details .extra{color:var(--amber-600);}
+  .alt-details .shared{color:var(--teal-700);}
+  .alt-empty{padding:30px 16px;text-align:center;color:var(--ink-soft);}
+
   ::-webkit-scrollbar{width:8px;height:8px;}
   ::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px;}
 </style>
@@ -288,6 +340,7 @@
 <nav class="tabs">
   <button class="tab-btn active" data-view="vergelijk">Zoeken &amp; vergelijken</button>
   <button class="tab-btn" data-view="uitsluiten">Zoeken zonder hulpstof</button>
+  <button class="tab-btn" data-view="alternatieven">Alternatief zoeken</button>
 </nav>
 
 <main>
@@ -338,6 +391,28 @@
 
     <div class="result-count" id="resultCount2"></div>
     <div class="results" id="results2"></div>
+  </section>
+
+  <!-- ===================== TAB 3: ALTERNATIEF ZOEKEN ===================== -->
+  <section class="panel view" id="view-alternatieven">
+    <h2 class="section-title">Alternatief zoeken</h2>
+    <p class="section-sub">Handig als een middel niet leverbaar is. Kies hieronder het middel dat ontbreekt — je krijgt een top 3 van andere merken met dezelfde werkzame stof(fen), gerangschikt op hoe sterk de hulpstoffen overeenkomen.</p>
+
+    <div id="altStep1">
+      <div class="search-row">
+        <input type="text" id="altSearchInput" placeholder="Bijv. simvastatine sandoz 40…" autocomplete="off">
+      </div>
+      <div class="hint">Zoek het niet-leverbare middel op productnaam, werkzame stof of fabrikant.</div>
+      <div class="result-count" id="altResultCount"></div>
+      <div class="results" id="altResults"></div>
+    </div>
+
+    <div id="altStep2" style="display:none;">
+      <div class="ref-card" id="altRefCard"></div>
+      <h2 class="section-title" style="margin-top:22px;">Top alternatieven</h2>
+      <div id="altSummary" class="alt-summary"></div>
+      <div id="altList"></div>
+    </div>
   </section>
 </main>
 
@@ -590,6 +665,161 @@ function debounce(fn, ms){
     clearTimeout(t);
     t = setTimeout(() => fn.apply(this,args), ms);
   };
+}
+
+// ---------- TAB 3: alternatief zoeken ----------
+let altReference = null;
+
+function altCardHtml(rec){
+  const werkzaam = rec.werkzamestoffen.length ? rec.werkzamestoffen.join(', ') : '—';
+  return `<div class="card" data-id="${rec.id}">
+    <div>
+      <div class="name">${escapeHtml(rec.naam)}</div>
+      <div class="meta">${badgeForSoort(rec.soort)}<span class="sep">·</span>${escapeHtml(rec.houder||'onbekende fabrikant')}<span class="sep">·</span>${escapeHtml(rec.vorm||'onbekende vorm')}${rec.toedieningsweg ? ' · '+escapeHtml(rec.toedieningsweg) : ''}</div>
+      <div class="werkzaam"><b>Werkzame stof:</b> ${escapeHtml(werkzaam)} <span class="sep">·</span> ${rec.hulpstoffen.length} hulpstof(fen)</div>
+    </div>
+    <div class="card-actions">
+      <button class="chip-btn" onclick="chooseReference('${rec.id}')">Kies dit middel</button>
+    </div>
+  </div>`;
+}
+
+function runAltSearch(){
+  const q = document.getElementById('altSearchInput').value.trim();
+  const box = document.getElementById('altResults');
+  const countBox = document.getElementById('altResultCount');
+  if(!q){
+    box.innerHTML = '';
+    countBox.textContent = '';
+    return;
+  }
+  const matches = [];
+  for(let i=0;i<DATA.length;i++){
+    if(matchQuery(DATA[i], q)){
+      matches.push(DATA[i]);
+      if(matches.length >= 400) break;
+    }
+  }
+  countBox.textContent = matches.length + (matches.length>=400 ? '+ resultaten (eerste 60 getoond)' : ' resultaten' + (matches.length>60 ? ' (eerste 60 getoond)':''));
+  box.innerHTML = matches.slice(0,60).map(r => altCardHtml(r)).join('') || '<div class="tray-empty">Geen resultaten.</div>';
+}
+
+document.getElementById('altSearchInput').addEventListener('input', debounce(runAltSearch, 120));
+
+function chooseReference(id){
+  altReference = DATA.find(d => d.id === id);
+  if(!altReference) return;
+  document.getElementById('altStep1').style.display = 'none';
+  document.getElementById('altStep2').style.display = 'block';
+  renderRefCard();
+  computeAlternatives();
+}
+
+function clearReference(){
+  altReference = null;
+  document.getElementById('altStep1').style.display = 'block';
+  document.getElementById('altStep2').style.display = 'none';
+  document.getElementById('altSearchInput').value = '';
+  document.getElementById('altResults').innerHTML = '';
+  document.getElementById('altResultCount').textContent = '';
+}
+
+function renderRefCard(){
+  const r = altReference;
+  const werkzaam = r.werkzamestoffen.length ? r.werkzamestoffen.join(', ') : '—';
+  const hulpList = r.hulpstoffen.length ? r.hulpstoffen.join(', ') : 'geen hulpstoffen geregistreerd';
+  document.getElementById('altRefCard').innerHTML = `
+    <div class="ref-label">Niet-leverbaar middel (referentie)</div>
+    <div class="ref-name">${escapeHtml(r.naam)}</div>
+    <div class="ref-meta">${escapeHtml(r.houder||'')} <span class="sep">·</span> ${escapeHtml(r.vorm||'')}${r.toedieningsweg ? ' · '+escapeHtml(r.toedieningsweg):''}<span class="sep">·</span> Werkzame stof: ${escapeHtml(werkzaam)}</div>
+    <div class="ref-hulp"><b>Hulpstoffen (${r.hulpstoffen.length}):</b> ${escapeHtml(hulpList)}</div>
+    <button class="btn-clear-ref" onclick="clearReference()">Ander middel kiezen</button>
+  `;
+}
+
+function computeAlternatives(){
+  const ref = altReference;
+  const refKey = ref.werkzamestoffen.map(norm).slice().sort().join('|');
+  const refHulpSet = new Set(ref.hulpstoffen.map(norm));
+
+  // zelfde werkzame stof(fen), ander merk (fabrikant), niet het middel zelf
+  const candidates = DATA.filter(r =>
+    r.id !== ref.id &&
+    r.werkzamestoffen.map(norm).slice().sort().join('|') === refKey &&
+    (r.houder||'').trim().toUpperCase() !== (ref.houder||'').trim().toUpperCase()
+  );
+
+  const scored = candidates.map(r => {
+    const candHulpSet = new Set(r.hulpstoffen.map(norm));
+    const unionSet = new Set([...refHulpSet, ...candHulpSet]);
+    const sharedCount = [...refHulpSet].filter(h => candHulpSet.has(h)).length;
+    const pct = unionSet.size === 0 ? 100 : Math.round((sharedCount / unionSet.size) * 100);
+    const shared = ref.hulpstoffen.filter(h => candHulpSet.has(norm(h)));
+    const missing = ref.hulpstoffen.filter(h => !candHulpSet.has(norm(h))); // zit in referentie, niet in dit alternatief
+    const extra = r.hulpstoffen.filter(h => !refHulpSet.has(norm(h)));       // zit in dit alternatief, niet in referentie
+    return { rec:r, pct, sharedCount, shared, missing, extra };
+  });
+
+  // per merk (fabrikant) de beste match bewaren, zodat 1 merk niet 3x de top3 vult
+  const byBrand = {};
+  scored.forEach(s => {
+    const key = (s.rec.houder||'(onbekende fabrikant)').trim().toUpperCase();
+    const existing = byBrand[key];
+    if(!existing || s.pct > existing.pct || (s.pct === existing.pct && s.sharedCount > existing.sharedCount)){
+      byBrand[key] = s;
+    }
+  });
+
+  const brandList = Object.values(byBrand).sort((a,b) => b.pct - a.pct || b.sharedCount - a.sharedCount);
+  renderAlternatives(brandList);
+}
+
+function pctClass(pct){
+  if(pct >= 80) return '';
+  if(pct >= 50) return 'mid';
+  return 'low';
+}
+
+function listOrNone(arr, noneLabel){
+  return arr.length ? escapeHtml(arr.join(', ')) : `<i>${noneLabel}</i>`;
+}
+
+function renderAlternatives(brandList){
+  const summary = document.getElementById('altSummary');
+  const list = document.getElementById('altList');
+
+  if(brandList.length === 0){
+    summary.textContent = '';
+    list.innerHTML = '<div class="alt-empty">Geen andere merken gevonden met dezelfde werkzame stof(fen) in dit databestand.</div>';
+    return;
+  }
+
+  const n = brandList.length;
+  summary.textContent = n >= 3
+    ? `${n} andere merken gevonden — top 3 hieronder, gerangschikt op hulpstof-overeenkomst.`
+    : `Slechts ${n} ander${n===1?' merk':'e merken'} gevonden met dezelfde werkzame stof(fen) (minder dan 3 op de markt).`;
+
+  const top = brandList.slice(0,3);
+  list.innerHTML = top.map((s,i) => {
+    const r = s.rec;
+    const werkzaam = r.werkzamestoffen.length ? r.werkzamestoffen.join(', ') : '—';
+    return `<div class="alt-card">
+      <div class="alt-rank">#${i+1}</div>
+      <div class="alt-body">
+        <div class="alt-name">${escapeHtml(r.naam)}</div>
+        <div class="alt-meta">${escapeHtml(r.houder||'onbekende fabrikant')} <span class="sep">·</span> ${escapeHtml(r.vorm||'')}${r.toedieningsweg ? ' · '+escapeHtml(r.toedieningsweg):''}<span class="sep">·</span> Werkzame stof: ${escapeHtml(werkzaam)}</div>
+        <div class="alt-pctrow">
+          <div class="alt-pctbar"><div class="alt-pctfill ${pctClass(s.pct)}" style="width:${s.pct}%"></div></div>
+          <div class="alt-pct-label">${s.pct}% match</div>
+        </div>
+        <div class="alt-details">
+          <div class="row shared"><b>Gedeelde hulpstoffen (${s.sharedCount}):</b> ${listOrNone(s.shared, 'geen gedeelde hulpstoffen')}</div>
+          <div class="row missing"><b>Ontbreekt bij dit alternatief:</b> ${listOrNone(s.missing, 'niets — alle hulpstoffen van het origineel zitten erin')}</div>
+          <div class="row extra"><b>Extra in dit alternatief:</b> ${listOrNone(s.extra, 'geen extra hulpstoffen')}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 renderTray();

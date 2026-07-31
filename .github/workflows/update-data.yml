@@ -1,0 +1,49 @@
+name: CBG data bijwerken
+
+on:
+  schedule:
+    # Elke maandag om 05:00 Nederlandse tijd (03:00 UTC in de zomer / 04:00 UTC in de winter -
+    # we gebruiken 03:00 UTC zodat het altijd rond de vroege ochtend NL-tijd draait)
+    - cron: '0 3 * * 1'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository ophalen
+        uses: actions/checkout@v4
+
+      - name: CBG-databestand downloaden
+        run: curl -sSL -o metadata.csv "https://www.geneesmiddeleninformatiebank.nl/metadata.csv"
+
+      - name: Controleren of download gelukt is
+        run: |
+          if [ ! -s metadata.csv ]; then
+            echo "Download is leeg of mislukt, workflow stopt."
+            exit 1
+          fi
+          wc -l metadata.csv
+
+      - name: Python installeren
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Data verwerken naar data.js en hulpstoffen.js
+        run: python scripts/process_cbg.py
+
+      - name: Wijzigingen committen en pushen (alleen als er iets veranderd is)
+        run: |
+          git config user.name "cbg-data-bot"
+          git config user.email "actions@github.com"
+          git add data.js hulpstoffen.js
+          if git diff --staged --quiet; then
+            echo "Geen wijzigingen in de data, niets te committen."
+          else
+            git commit -m "Automatische update CBG-databestand ($(date +'%Y-%m-%d'))"
+            git push
+          fi

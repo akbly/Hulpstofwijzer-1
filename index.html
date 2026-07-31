@@ -464,10 +464,12 @@
 
 <script src="data.js"></script>
 <script src="hulpstoffen.js"></script>
+<script src="meta.js"></script>
 <script>
 const DATA = window.MEDICIJNEN || [];
 const HULPSTOFFEN_INDEX = window.HULPSTOFFEN_INDEX || [];
-document.getElementById('dataCount').textContent = DATA.length.toLocaleString('nl-NL') + ' geneesmiddelen geladen';
+document.getElementById('dataCount').textContent = DATA.length.toLocaleString('nl-NL') + ' geneesmiddelen geladen'
+  + (window.CBG_META && window.CBG_META.gegenereerd_label ? ' · data van ' + window.CBG_META.gegenereerd_label : '');
 
 // ---------- helpers ----------
 function norm(s){ return (s||'').toLocaleUpperCase('nl-NL'); }

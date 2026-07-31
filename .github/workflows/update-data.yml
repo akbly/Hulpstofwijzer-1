@@ -40,7 +40,7 @@ jobs:
         run: |
           git config user.name "cbg-data-bot"
           git config user.email "actions@github.com"
-          git add data.js hulpstoffen.js
+          git add data.js hulpstoffen.js meta.js
           if git diff --staged --quiet; then
             echo "Geen wijzigingen in de data, niets te committen."
           else

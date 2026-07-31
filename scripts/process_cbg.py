@@ -1,8 +1,12 @@
 import csv
 import json
 import re
+import datetime
 
 SRC = "metadata.csv"
+
+MAANDEN = ["januari","februari","maart","april","mei","juni","juli",
+           "augustus","september","oktober","november","december"]
 
 def split_stoffen(raw):
     if not raw or not isinstance(raw, str):
@@ -73,4 +77,15 @@ with open("data.js", "w", encoding="utf-8") as f:
 with open("hulpstoffen.js", "w", encoding="utf-8") as f:
     f.write("window.HULPSTOFFEN_INDEX=" + json.dumps(hulpstoffen_index, ensure_ascii=False, separators=(",", ":")) + ";")
 
-print("data.js en hulpstoffen.js zijn bijgewerkt.")
+now = datetime.datetime.now(datetime.timezone.utc)
+gegenereerd_label = f"{now.day} {MAANDEN[now.month-1]} {now.year}"
+meta = {
+    "gegenereerd_iso": now.strftime("%Y-%m-%d"),
+    "gegenereerd_label": gegenereerd_label,
+    "aantal_producten": len(records),
+    "aantal_hulpstoffen": len(hulpstoffen_index),
+}
+with open("meta.js", "w", encoding="utf-8") as f:
+    f.write("window.CBG_META=" + json.dumps(meta, ensure_ascii=False) + ";")
+
+print("data.js, hulpstoffen.js en meta.js zijn bijgewerkt.")

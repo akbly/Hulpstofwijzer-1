@@ -1,1 +1,1 @@
-window.CBG_META={"gegenereerd_iso": "2026-09-14", "gegenereerd_label": "14 september 2026", "aantal_producten": 19471, "aantal_hulpstoffen": 1433};
+window.CBG_META={"gegenereerd_iso": "2026-09-21", "gegenereerd_label": "21 september 2026", "aantal_producten": 19466, "aantal_hulpstoffen": 1432};
